@@ -86,7 +86,7 @@ async def color_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = ApplicationBuilder().token(
-        "8078129399:AAG-2FzohoPoU2Wv9UAFE418ybUTW3zJDJo"
+        getenv("BOT_TOKEN")
     ).build()
 
     app.add_handler(CommandHandler("start", colors))
