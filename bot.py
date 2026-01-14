@@ -15,7 +15,7 @@ from telegram.ext import (
 
 # ================= MQTT =================
 MQTT_BROKER = getenv("MQTT_BROKER")
-MQTT_PORT = getenv("MQTT_PORT")
+MQTT_PORT = int(getenv("MQTT_PORT"))
 MQTT_TOPIC = getenv("MQTT_TOPIC")
 MQTT_USERNAME = getenv("MQTT_USERNAME")
 MQTT_PASSWORD = getenv("MQTT_PASSWORD")
@@ -23,8 +23,6 @@ MQTT_CA_FILE = getenv("MQTT_CA_FILE")
 
 mqtt_client = mqtt.Client()
 mqtt_client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-mqtt_client.tls_set()
-mqtt_client.tls_insecure_set(True)
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -86,7 +84,7 @@ async def color_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = ApplicationBuilder().token(
-        getenv("BOT_TOKEN")
+        "8078129399:AAG-2FzohoPoU2Wv9UAFE418ybUTW3zJDJo"
     ).build()
 
     app.add_handler(CommandHandler("start", colors))
