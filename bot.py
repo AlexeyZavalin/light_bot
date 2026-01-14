@@ -13,6 +13,10 @@ from telegram.ext import (
     ContextTypes
 )
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # ================= MQTT =================
 MQTT_BROKER = getenv("MQTT_BROKER")
 MQTT_PORT = int(getenv("MQTT_PORT"))
