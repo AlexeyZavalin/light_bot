@@ -46,8 +46,8 @@ async def colors(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton("🔴-", callback_data="2"),
             InlineKeyboardButton("🔵+", callback_data="3"),
-            InlineKeyboardButton("➕", callback_data="4"),
-            InlineKeyboardButton("➖", callback_data="5"),
+            InlineKeyboardButton("➖", callback_data="4"),
+            InlineKeyboardButton("➕", callback_data="5"),
             
         ],
         [
