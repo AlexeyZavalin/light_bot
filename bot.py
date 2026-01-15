@@ -28,6 +28,20 @@ MQTT_CA_FILE = getenv("MQTT_CA_FILE")
 mqtt_client = mqtt.Client()
 mqtt_client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
 
+
+def load_whitelist():
+    raw = getenv("WHITELIST_USERS", "")
+    return {int(uid.strip()) for uid in raw.split(",") if uid.strip().isdigit()}
+
+
+WHITELIST_USERS = load_whitelist()
+
+
+def is_allowed(update: Update) -> bool:
+    user = update.effective_user
+    return user and user.id in WHITELIST_USERS
+
+
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("✅ MQTT connected")
@@ -42,6 +56,11 @@ mqtt_client.loop_start()
 # ================= TELEGRAM =================
 
 async def colors(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_allowed(update):
+        await update.message.reply_text("⛔ Доступ запрещён")
+        return
+
+    context.user_data.clear()
     keyboard = [
         [
             InlineKeyboardButton("🔴-", callback_data="2"),
@@ -75,6 +94,7 @@ async def colors(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
+
 async def color_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
 
@@ -88,7 +108,7 @@ async def color_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = ApplicationBuilder().token(
-        "8078129399:AAG-2FzohoPoU2Wv9UAFE418ybUTW3zJDJo"
+        getenv("BOT_TOKEN")
     ).build()
 
     app.add_handler(CommandHandler("start", colors))
@@ -96,6 +116,7 @@ def main():
 
     print("🤖 Telegram bot started")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
