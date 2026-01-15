@@ -36,6 +36,17 @@ def load_whitelist():
 
 WHITELIST_USERS = load_whitelist()
 
+DEVICES = {
+    "strip1": "🌈 Лента на стеллаже",
+}
+
+DEVICE_TOPICS = {
+    "strip1": {
+        "cmd": "esp32/led1",
+        "status": "esp32/led1/status",
+    }
+}
+
 
 def is_allowed(update: Update) -> bool:
     user = update.effective_user
@@ -53,56 +64,107 @@ mqtt_client.on_connect = on_connect
 mqtt_client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
 mqtt_client.loop_start()
 
-# ================= TELEGRAM =================
 
-async def colors(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ================= TELEGRAM =================
+def devices_keyboard():
+    keyboard = [
+        [InlineKeyboardButton(name, callback_data=f"device:{key}")]
+        for key, name in DEVICES.items()
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_allowed(update):
         await update.message.reply_text("⛔ Доступ запрещён")
         return
 
     context.user_data.clear()
-    keyboard = [
-        [
-            InlineKeyboardButton("🔴-", callback_data="2"),
-            InlineKeyboardButton("🔵+", callback_data="3"),
-            InlineKeyboardButton("➖", callback_data="4"),
-            InlineKeyboardButton("➕", callback_data="5"),
-            
-        ],
-        [
-            InlineKeyboardButton("🔅", callback_data="6"),
-            InlineKeyboardButton("🔆", callback_data="7"),
-            InlineKeyboardButton("🎨", callback_data="8"),
-            InlineKeyboardButton("🌊", callback_data="9"),
-        ],
-        [
-            InlineKeyboardButton("🌈", callback_data="10"),
-            InlineKeyboardButton("🔥", callback_data="11"),
-            InlineKeyboardButton("❤️‍🔥", callback_data="12"),
-            InlineKeyboardButton("🕺", callback_data="13"),
-        ],
-        [
-            InlineKeyboardButton("☄️", callback_data="14"),
-            InlineKeyboardButton("✨", callback_data="15"),
-            InlineKeyboardButton("🌠", callback_data="16"),
-            InlineKeyboardButton("🌑/💡", callback_data="1"),
-        ]
-    ]
 
     await update.message.reply_text(
-        "🎨 Выбери цвет ленты:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        "📟 Выбери устройство:",
+        reply_markup=devices_keyboard()
     )
 
 
-async def color_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def colors_keyboard():
+    keyboard = [
+        [
+            InlineKeyboardButton("🔴-", callback_data="cmd:2"),
+            InlineKeyboardButton("🔵+", callback_data="cmd:3"),
+            InlineKeyboardButton("➖", callback_data="cmd:4"),
+            InlineKeyboardButton("➕", callback_data="cmd:5"),
+            
+        ],
+        [
+            InlineKeyboardButton("🔅", callback_data="cmd:6"),
+            InlineKeyboardButton("🔆", callback_data="cmd:7"),
+            InlineKeyboardButton("🎨", callback_data="cmd:8"),
+            InlineKeyboardButton("🌊", callback_data="cmd:9"),
+        ],
+        [
+            InlineKeyboardButton("🌈", callback_data="cmd:10"),
+            InlineKeyboardButton("🔥", callback_data="cmd:11"),
+            InlineKeyboardButton("❤️‍🔥", callback_data="cmd:12"),
+            InlineKeyboardButton("🕺", callback_data="cmd:13"),
+        ],
+        [
+            InlineKeyboardButton("☄️", callback_data="cmd:14"),
+            InlineKeyboardButton("✨", callback_data="cmd:15"),
+            InlineKeyboardButton("🌠", callback_data="cmd:16"),
+            InlineKeyboardButton("🌑/💡", callback_data="cmd:1"),
+        ],
+        [
+            InlineKeyboardButton("⬅️ Назад", callback_data="back:devices")
+        ]
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
 
-    await query.answer("🎨 Отправляю цвет…", show_alert=False)
+    if not is_allowed(update):
+        await query.answer("⛔ Доступ запрещён", show_alert=True)
+        return
 
-    payload = query.data
+    data = query.data
 
-    mqtt_client.publish(MQTT_TOPIC, payload, qos=1)
+    # ⬅️ Назад
+    if data == "back:devices":
+        context.user_data.clear()
+        await query.edit_message_text(
+            "📟 Выбери устройство:",
+            reply_markup=devices_keyboard()
+        )
+        return
+
+    # 📟 Выбор устройства
+    if data.startswith("device:"):
+        device_key = data.split(":", 1)[1]
+        context.user_data["device"] = device_key
+
+        await query.edit_message_text(
+            f"✅ Устройство: {DEVICES[device_key]}\n\n🎨 Выбери команду:",
+            reply_markup=colors_keyboard()
+        )
+        return
+
+    # 🎨 Команда
+    if data.startswith("cmd:"):
+        device_key = context.user_data.get("device")
+
+        if not device_key:
+            await query.answer("⚠️ Сначала выбери устройство", show_alert=True)
+            return
+
+        payload = data.split(":", 1)[1]
+        topic = DEVICE_TOPICS[device_key]["cmd"]
+
+        mqtt_client.publish(topic, payload, qos=1)
+
+        await query.answer("📡 Команда отправлена")
 
 # ================= MAIN =================
 
@@ -111,8 +173,8 @@ def main():
         getenv("BOT_TOKEN")
     ).build()
 
-    app.add_handler(CommandHandler("start", colors))
-    app.add_handler(CallbackQueryHandler(color_callback))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(callback_handler))
 
     print("🤖 Telegram bot started")
     app.run_polling()
