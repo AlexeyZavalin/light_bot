@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "8883:8883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+
+#  postgres:
+#    image: postgres:16
+#    container_name: postgres
+#    restart: unless-stopped
+#    environment:
+#      POSTGRES_DB: nodered
+#      POSTGRES_USER: nodered
+#      POSTGRES_PASSWORD: strongpassword
+#    volumes:
+#      - ./postgres:/var/lib/postgresql/data
+#    ports:
+#      - "5432:5432"
+
+  nodered:
+    image: nodered/node-red:latest
+    container_name: nodered
+    restart: unless-stopped
+    depends_on:
+#      - postgres
+      - mosquitto
+    environment:
+      TZ: Europe/Moscow
+    volumes:
+      - ./nodered:/data
+    expose:
+      - "1880"
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - nodered
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
